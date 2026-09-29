@@ -1,6 +1,7 @@
 """
 ui/components/modal_loan.py
-Ventana emergente para registrar o editar un préstamo con botones fijos inferiores y centrado automático.
+Ventana emergente para registrar o editar un préstamo, con soporte para
+horarios indefinidos / uso durante la jornada y repetición semanal recurrente.
 """
 
 from datetime import datetime
@@ -18,14 +19,10 @@ class ModalLoan(ctk.CTkToplevel):
         self.prestamo_id = prestamo_id
 
         self.title("Editar Préstamo" if prestamo_id else "Nuevo Préstamo")
-        
-        # Dimensiones cómodas con centrado automático en pantalla
-        centrar_ventana(self, ancho=540, alto=680)
+        centrar_ventana(self, ancho=560, alto=720)
         
         self.resizable(False, False)
         self.configure(fg_color=Theme.BG_DARK)
-
-        # Forzar ventana modal al frente
         self.transient(parent)
         self.grab_set()
 
@@ -63,16 +60,14 @@ class ModalLoan(ctk.CTkToplevel):
         footer_frame = ctk.CTkFrame(self, fg_color="transparent")
         footer_frame.pack(side="bottom", fill="x", padx=25, pady=(0, 20))
 
-        # Mensaje de error / validación
         self.lbl_error = ctk.CTkLabel(
             footer_frame, text="", 
             font=("Segoe UI", 11), 
             text_color=Theme.COLOR_DANGER,
-            wraplength=480
+            wraplength=500
         )
         self.lbl_error.pack(fill="x", pady=(0, 8))
 
-        # Botones de Acción
         btns_frame = ctk.CTkFrame(footer_frame, fg_color="transparent")
         btns_frame.pack(fill="x")
 
@@ -92,7 +87,7 @@ class ModalLoan(ctk.CTkToplevel):
         )
         btn_guardar.pack(side="left", fill="x", expand=True, padx=(6, 0))
 
-        # 3. Formulario Central (Scrollable para no desbordar)
+        # 3. Formulario Central Scrollable
         form_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         form_frame.pack(side="top", fill="both", expand=True, padx=25, pady=(0, 10))
 
@@ -107,11 +102,10 @@ class ModalLoan(ctk.CTkToplevel):
         self.combo_curso = ctk.CTkComboBox(form_frame, values=nombres_curso, height=34, dropdown_fg_color=Theme.BG_CARD)
         self.combo_curso.pack(fill="x", pady=(2, 10))
 
-        # Fecha y Rango Horario
+        # Fecha y Horarios
         row_tiempo = ctk.CTkFrame(form_frame, fg_color="transparent")
-        row_tiempo.pack(fill="x", pady=(2, 10))
+        row_tiempo.pack(fill="x", pady=(2, 6))
 
-        # Fecha
         col_fecha = ctk.CTkFrame(row_tiempo, fg_color="transparent")
         col_fecha.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ctk.CTkLabel(col_fecha, text="Fecha (YYYY-MM-DD):", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
@@ -119,7 +113,6 @@ class ModalLoan(ctk.CTkToplevel):
         self.entry_fecha.insert(0, datetime.now().strftime("%Y-%m-%d"))
         self.entry_fecha.pack(fill="x")
 
-        # Hora inicio
         col_inicio = ctk.CTkFrame(row_tiempo, fg_color="transparent")
         col_inicio.pack(side="left", fill="x", expand=True, padx=4)
         ctk.CTkLabel(col_inicio, text="Hora Inicio:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
@@ -127,13 +120,44 @@ class ModalLoan(ctk.CTkToplevel):
         self.entry_hora_ini.insert(0, datetime.now().strftime("%H:%M"))
         self.entry_hora_ini.pack(fill="x")
 
-        # Hora fin
         col_fin = ctk.CTkFrame(row_tiempo, fg_color="transparent")
         col_fin.pack(side="left", fill="x", expand=True, padx=(4, 0))
         ctk.CTkLabel(col_fin, text="Hora Fin:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
         self.entry_hora_fin = ctk.CTkEntry(col_fin, height=34)
         self.entry_hora_fin.insert(0, "13:10")
         self.entry_hora_fin.pack(fill="x")
+
+        # Casilla para Tiempo Indefinido / Por la jornada
+        self.var_indefinido = ctk.BooleanVar(value=False)
+        self.chk_indefinido = ctk.CTkCheckBox(
+            form_frame,
+            text="Uso indefinido / durante la jornada escolar (sin hora fin fija)",
+            variable=self.var_indefinido,
+            font=("Segoe UI", 11),
+            command=self._toggle_indefinido
+        )
+        self.chk_indefinido.pack(anchor="w", pady=(0, 10))
+
+        # Bloque de Préstamo Recurrente (Solo en nuevos préstamos)
+        if not self.prestamo_id:
+            box_recurrente = ctk.CTkFrame(form_frame, fg_color=Theme.BG_CARD, corner_radius=6)
+            box_recurrente.pack(fill="x", pady=(0, 10), padx=2)
+
+            self.var_recurrente = ctk.BooleanVar(value=False)
+            self.chk_recurrente = ctk.CTkCheckBox(
+                box_recurrente,
+                text="Repetir semanalmente (ej. todos los martes / viernes)",
+                variable=self.var_recurrente,
+                font=("Segoe UI", 11, "bold"),
+                command=self._toggle_recurrente
+            )
+            self.chk_recurrente.pack(anchor="w", padx=10, pady=(8, 4))
+
+            self.frame_rec_hasta = ctk.CTkFrame(box_recurrente, fg_color="transparent")
+            ctk.CTkLabel(self.frame_rec_hasta, text="Repetir hasta fecha (YYYY-MM-DD):", font=("Segoe UI", 11), text_color=Theme.TEXT_MUTED).pack(side="left", padx=10)
+            self.entry_fecha_fin_rep = ctk.CTkEntry(self.frame_rec_hasta, width=130, height=28)
+            self.entry_fecha_fin_rep.insert(0, "2026-11-30")
+            self.entry_fecha_fin_rep.pack(side="left", padx=5)
 
         # Recursos Solicitados
         ctk.CTkLabel(form_frame, text="Recursos a Solicitar:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w", pady=(5, 2))
@@ -165,8 +189,24 @@ class ModalLoan(ctk.CTkToplevel):
 
         # Observaciones
         ctk.CTkLabel(form_frame, text="Observaciones / Motivo:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
-        self.entry_obs = ctk.CTkEntry(form_frame, height=34, placeholder_text="Ej: Toma de pruebas, reforzamiento...")
+        self.entry_obs = ctk.CTkEntry(form_frame, height=34, placeholder_text="Ej: Reforzamiento, clase continua, toma de pruebas...")
         self.entry_obs.pack(fill="x", pady=(2, 10))
+
+    def _toggle_indefinido(self):
+        if self.var_indefinido.get():
+            self.entry_hora_fin.delete(0, "end")
+            self.entry_hora_fin.insert(0, "--:--")
+            self.entry_hora_fin.configure(state="disabled")
+        else:
+            self.entry_hora_fin.configure(state="normal")
+            self.entry_hora_fin.delete(0, "end")
+            self.entry_hora_fin.insert(0, "13:10")
+
+    def _toggle_recurrente(self):
+        if self.var_recurrente.get():
+            self.frame_rec_hasta.pack(fill="x", pady=(0, 8))
+        else:
+            self.frame_rec_hasta.pack_forget()
 
     def _cargar_datos_existentes(self):
         conn = get_connection()
@@ -188,8 +228,14 @@ class ModalLoan(ctk.CTkToplevel):
             self.entry_fecha.insert(0, p["fecha"])
             self.entry_hora_ini.delete(0, "end")
             self.entry_hora_ini.insert(0, p["hora_inicio"])
-            self.entry_hora_fin.delete(0, "end")
-            self.entry_hora_fin.insert(0, p["hora_fin"])
+
+            if not p["hora_fin"] or p["hora_fin"] == "":
+                self.var_indefinido.set(True)
+                self._toggle_indefinido()
+            else:
+                self.entry_hora_fin.delete(0, "end")
+                self.entry_hora_fin.insert(0, p["hora_fin"])
+
             if p["observaciones"]:
                 self.entry_obs.delete(0, "end")
                 self.entry_obs.insert(0, p["observaciones"])
@@ -209,7 +255,7 @@ class ModalLoan(ctk.CTkToplevel):
         curso_nombre = self.combo_curso.get()
         fecha = self.entry_fecha.get().strip()
         h_ini = self.entry_hora_ini.get().strip()
-        h_fin = self.entry_hora_fin.get().strip()
+        h_fin = None if self.var_indefinido.get() else self.entry_hora_fin.get().strip()
         obs = self.entry_obs.get().strip()
 
         func_id = next((f["id"] for f in self.lista_funcionarios if f["nombre"] == func_nombre), None)
@@ -238,7 +284,15 @@ class ModalLoan(ctk.CTkToplevel):
 
         try:
             if not self.prestamo_id:
-                exito, mensaje = StockService.crear_prestamo(fecha, h_ini, h_fin, func_id, curso_id, obs, items)
+                if hasattr(self, "var_recurrente") and self.var_recurrente.get():
+                    f_rep = self.entry_fecha_fin_rep.get().strip()
+                    exito, mensaje = StockService.crear_prestamo_recurrente(
+                        fecha, f_rep, h_ini, h_fin, func_id, curso_id, obs, items
+                    )
+                else:
+                    exito, mensaje = StockService.crear_prestamo(
+                        fecha, h_ini, h_fin, func_id, curso_id, obs, items
+                    )
             else:
                 exito, mensaje = self._actualizar_prestamo(func_id, curso_id, fecha, h_ini, h_fin, obs, items)
 
@@ -251,7 +305,7 @@ class ModalLoan(ctk.CTkToplevel):
             self.lbl_error.configure(text=f"Error inesperado: {str(e)}")
 
     def _actualizar_prestamo(self, func_id, curso_id, fecha, h_ini, h_fin, obs, items):
-        if h_fin <= h_ini:
+        if h_fin and h_fin <= h_ini:
             return False, "La hora de término debe ser posterior a la de inicio."
 
         for item in items:

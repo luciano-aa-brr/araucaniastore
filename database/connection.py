@@ -1,8 +1,20 @@
+"""
+database/connection.py
+Conexión SQLite, transacciones seguras y datos semilla para AraucaníaStock.
+"""
+
 import sqlite3
 import os
+import sys
 from contextlib import contextmanager
 
-DB_NAME = "araucaniastore.db"
+# Detectar ruta real (tanto en script .py como en ejecutable .exe compilado en USB)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+DB_NAME = os.path.join(BASE_DIR, "araucaniastore.db")
 
 def get_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -55,13 +67,13 @@ def init_database():
             );
         """)
 
-        # 4. Tabla Maestra de Préstamos
+        # 4. Tabla Maestra de Préstamos (hora_fin puede ser NULL para indefinidos)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS prestamos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fecha TEXT NOT NULL,          -- Formato YYYY-MM-DD
                 hora_inicio TEXT NOT NULL,    -- Formato HH:MM
-                hora_fin TEXT NOT NULL,       -- Formato HH:MM
+                hora_fin TEXT,                -- Formato HH:MM (o NULL para uso continuo/indefinido)
                 funcionario_id INTEGER NOT NULL,
                 curso_id INTEGER,
                 observaciones TEXT,
@@ -84,11 +96,39 @@ def init_database():
             );
         """)
 
-        # 6. Semilla inicial de datos tomados de la planilla Excel
+        # 6. Tabla de Préstamos Recurrentes (Semanal: Martes, Viernes, etc.)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS prestamos_recurrentes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER NOT NULL,
+                curso_id INTEGER,
+                dia_semana INTEGER NOT NULL, -- 0=Lunes, 1=Martes, 2=Miércoles, 3=Jueves, 4=Viernes
+                hora_inicio TEXT NOT NULL,
+                hora_fin TEXT,               -- Opcional / Indefinido
+                fecha_fin_repeticion TEXT NOT NULL, -- YYYY-MM-DD hasta cuándo dura
+                observaciones TEXT,
+                activo INTEGER DEFAULT 1,
+                FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id) ON DELETE RESTRICT,
+                FOREIGN KEY (curso_id) REFERENCES cursos(id) ON DELETE SET NULL
+            );
+        """)
+
+        # 7. Detalle de ítems de préstamos recurrentes
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS prestamo_recurrente_detalles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recurrente_id INTEGER NOT NULL,
+                recurso_id INTEGER NOT NULL,
+                cantidad INTEGER NOT NULL DEFAULT 1 CHECK(cantidad > 0),
+                FOREIGN KEY (recurrente_id) REFERENCES prestamos_recurrentes(id) ON DELETE CASCADE,
+                FOREIGN KEY (recurso_id) REFERENCES recursos(id) ON DELETE RESTRICT
+            );
+        """)
+
+        # 8. Semilla inicial de datos tomados del Excel
         _seed_initial_data(cur)
 
 def _seed_initial_data(cur):
-    # Cargar funcionarios si la tabla está vacía
     cur.execute("SELECT COUNT(*) as count FROM funcionarios;")
     if cur.fetchone()["count"] == 0:
         funcionarios = [
@@ -100,7 +140,6 @@ def _seed_initial_data(cur):
         for f in funcionarios:
             cur.execute("INSERT OR IGNORE INTO funcionarios (nombre) VALUES (?);", (f,))
 
-    # Cargar cursos si está vacía
     cur.execute("SELECT COUNT(*) as count FROM cursos;")
     if cur.fetchone()["count"] == 0:
         cursos = [
@@ -110,7 +149,6 @@ def _seed_initial_data(cur):
         for c in cursos:
             cur.execute("INSERT OR IGNORE INTO cursos (nombre) VALUES (?);", (c,))
 
-    # Cargar recursos iniciales si está vacía
     cur.execute("SELECT COUNT(*) as count FROM recursos;")
     if cur.fetchone()["count"] == 0:
         recursos = [
@@ -129,4 +167,4 @@ def _seed_initial_data(cur):
 
 if __name__ == "__main__":
     init_database()
-    print("Base de datos araucaniastock.db inicializada correctamente con datos semilla.")
+    print("Base de datos araucaniastore.db inicializada correctamente.")

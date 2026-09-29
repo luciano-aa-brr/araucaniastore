@@ -19,7 +19,7 @@ class LoansView(ctk.CTkFrame):
         self._construir_cabecera()
         self._construir_tabla_contenedor()
 
-        # Paginador inferior
+        # Paginador inferior (20 elementos por página)
         self.paginator = Paginator(self, on_page_change_callback=self.cargar_prestamos, items_per_page=20)
         self.paginator.pack(side="bottom", fill="x", pady=10)
 
@@ -29,7 +29,7 @@ class LoansView(ctk.CTkFrame):
         cabecera = ctk.CTkFrame(self, fg_color="transparent")
         cabecera.pack(fill="x", pady=(0, 15))
 
-        # Buscador
+        # Buscador por texto
         self.entry_busqueda = ctk.CTkEntry(
             cabecera,
             placeholder_text="🔍 Buscar por profesor, curso u observación...",
@@ -57,9 +57,23 @@ class LoansView(ctk.CTkFrame):
         cols_frame = ctk.CTkFrame(self, fg_color=Theme.BG_CARD, height=36, corner_radius=6)
         cols_frame.pack(fill="x", pady=(0, 6))
 
-        headers = [("Horario", 120), ("Solicitante", 180), ("Curso", 90), ("Equipos / Espacio", 220), ("Observaciones", 200), ("Acciones", 160)]
+        headers = [
+            ("Horario", 130), 
+            ("Solicitante", 180), 
+            ("Curso", 90), 
+            ("Equipos / Espacio", 220), 
+            ("Observaciones", 200), 
+            ("Acciones", 160)
+        ]
         for text, width in headers:
-            lbl = ctk.CTkLabel(cols_frame, text=text, font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED, anchor="w")
+            lbl = ctk.CTkLabel(
+                cols_frame, 
+                text=text, 
+                font=("Segoe UI", 11, "bold"), 
+                text_color=Theme.TEXT_MUTED, 
+                anchor="w",
+                width=width
+            )
             lbl.pack(side="left", padx=10, fill="x", expand=(text in ["Equipos / Espacio", "Observaciones"]))
 
         # Contenedor con scroll para las filas
@@ -133,8 +147,13 @@ class LoansView(ctk.CTkFrame):
         fila = ctk.CTkFrame(self.filas_frame, fg_color=Theme.BG_CARD, height=44, corner_radius=6)
         fila.pack(fill="x", pady=3)
 
-        horario = f"{p['hora_inicio']} - {p['hora_fin']}"
-        lbl_hora = ctk.CTkLabel(fila, text=horario, width=120, anchor="w", font=("Segoe UI", 12))
+        # Formato de horario: Manejo de uso continuo / indefinido
+        if p["hora_fin"] and p["hora_fin"].strip() != "":
+            horario = f"{p['hora_inicio']} - {p['hora_fin']}"
+        else:
+            horario = f"{p['hora_inicio']} (Continuo)"
+
+        lbl_hora = ctk.CTkLabel(fila, text=horario, width=130, anchor="w", font=("Segoe UI", 12))
         lbl_hora.pack(side="left", padx=10)
 
         lbl_prof = ctk.CTkLabel(fila, text=p["profesor"], width=180, anchor="w", font=("Segoe UI", 12, "bold"))

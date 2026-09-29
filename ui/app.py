@@ -1,14 +1,20 @@
 """
 ui/app.py
-Ventana principal de AraucaníaStock
+Ventana principal de AraucaníaStock con barra de estado, navegación y respaldo portable.
 """
 
+import os
+import shutil
+from datetime import datetime
+from tkinter import filedialog, messagebox
 import customtkinter as ctk
+
 from ui.theme import Theme
 from ui.components.status_bar import StatusBar
 from ui.views.loans_view import LoansView
 from ui.views.inventory_view import InventoryView
 from ui.views.history_view import HistoryView
+from database.connection import DB_NAME, BASE_DIR
 
 class AraucaniaApp(ctk.CTk):
     def __init__(self):
@@ -95,9 +101,21 @@ class AraucaniaApp(ctk.CTk):
         self.btn_nav_historial.pack(fill="x", padx=12, pady=5)
         self.nav_buttons["historial"] = self.btn_nav_historial
 
-        # Pie de Sidebar (Crédito KoaLink)
+        # Pie de Sidebar (Botón Backup y Crédito KoaLink)
         self.frame_side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.frame_side_footer.pack(side="bottom", pady=15, padx=10, fill="x")
+        self.frame_side_footer.pack(side="bottom", pady=15, padx=12, fill="x")
+
+        self.btn_backup = ctk.CTkButton(
+            self.frame_side_footer,
+            text="💾 Respaldar Base de Datos",
+            height=32,
+            font=("Segoe UI", 11, "bold"),
+            fg_color=Theme.BG_CARD,
+            hover_color=Theme.BORDER_COLOR,
+            text_color=Theme.TEXT_MAIN,
+            command=self.hacer_backup_db
+        )
+        self.btn_backup.pack(fill="x", pady=(0, 12))
 
         self.lbl_footer_koalink = ctk.CTkLabel(
             self.frame_side_footer,
@@ -112,7 +130,7 @@ class AraucaniaApp(ctk.CTk):
         self.main_content = ctk.CTkFrame(self, fg_color=Theme.BG_DARK, corner_radius=0)
         self.main_content.grid(row=1, column=1, sticky="nsew", padx=15, pady=15)
 
-        # Montar vista inicial (Préstamos Activos)
+        # Montar vista inicial
         self.current_view = LoansView(self.main_content, on_data_changed_callback=self.status_bar.refresh_status)
         self.current_view.pack(fill="both", expand=True)
 
@@ -121,7 +139,6 @@ class AraucaniaApp(ctk.CTk):
         for name, btn in self.nav_buttons.items():
             btn.configure(fg_color=Theme.BG_CARD if name == view_name else "transparent")
 
-        # Destruir vista anterior
         if hasattr(self, "current_view") and self.current_view:
             self.current_view.destroy()
 
@@ -134,12 +151,27 @@ class AraucaniaApp(ctk.CTk):
         elif view_name == "historial":
             self.current_view = HistoryView(self.main_content)
             self.current_view.pack(fill="both", expand=True)
-        else:
-            # Vista provisional para Historial (Hito 6)
-            self.current_view = ctk.CTkLabel(
-                self.main_content,
-                text=f"Vista '{view_name.capitalize()}' en construcción para el siguiente paso.",
-                font=("Segoe UI", 15),
-                text_color=Theme.TEXT_MUTED
-            )
-            self.current_view.pack(expand=True)
+
+    def hacer_backup_db(self):
+        """Copia la base de datos araucaniastore.db de forma segura con marca de tiempo."""
+        if not os.path.exists(DB_NAME):
+            messagebox.showerror("Error", "No se encontró el archivo de base de datos para respaldar.")
+            return
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_defecto = f"respaldo_araucaniastore_{timestamp}.db"
+
+        # Ofrecer al usuario elegir dónde guardar el respaldo
+        ruta_destino = filedialog.asksaveasfilename(
+            initialfile=nombre_defecto,
+            defaultextension=".db",
+            filetypes=[("Base de Datos SQLite", "*.db"), ("Todos los archivos", "*.*")],
+            title="Guardar copia de seguridad de la base de datos"
+        )
+
+        if ruta_destino:
+            try:
+                shutil.copy2(DB_NAME, ruta_destino)
+                messagebox.showinfo("Copia Exitosa", f"Respaldo creado correctamente en:\n{ruta_destino}")
+            except Exception as e:
+                messagebox.showerror("Error de Respaldo", f"No se pudo completar la copia:\n{str(e)}")
