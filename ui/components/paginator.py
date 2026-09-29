@@ -7,7 +7,7 @@ import customtkinter as ctk
 from ui.theme import Theme
 
 class Paginator(ctk.CTkFrame):
-    def __init__(self, parent, on_page_change_callback, items_per_page=10):
+    def __init__(self, parent, on_page_change_callback, items_per_page=20):
         super().__init__(parent, fg_color="transparent")
         
         self.on_page_change = on_page_change_callback

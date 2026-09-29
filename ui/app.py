@@ -7,6 +7,7 @@ import customtkinter as ctk
 from ui.theme import Theme
 from ui.components.status_bar import StatusBar
 from ui.views.loans_view import LoansView
+from ui.views.inventory_view import InventoryView
 
 class AraucaniaApp(ctk.CTk):
     def __init__(self):
@@ -126,8 +127,11 @@ class AraucaniaApp(ctk.CTk):
         if view_name == "prestamos":
             self.current_view = LoansView(self.main_content, on_data_changed_callback=self.status_bar.refresh_status)
             self.current_view.pack(fill="both", expand=True)
+        elif view_name == "inventario":
+            self.current_view = InventoryView(self.main_content, on_stock_changed_callback=self.status_bar.refresh_status)
+            self.current_view.pack(fill="both", expand=True)
         else:
-            # Vista provisional para las opciones aún en desarrollo
+            # Vista provisional para Historial (Hito 6)
             self.current_view = ctk.CTkLabel(
                 self.main_content,
                 text=f"Vista '{view_name.capitalize()}' en construcción para el siguiente paso.",

@@ -2,7 +2,7 @@ import sqlite3
 import os
 from contextlib import contextmanager
 
-DB_NAME = "koaroom.db"
+DB_NAME = "araucaniastore.db"
 
 def get_connection():
     conn = sqlite3.connect(DB_NAME)

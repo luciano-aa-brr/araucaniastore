@@ -1,11 +1,12 @@
 """
 ui/components/modal_loan.py
-Ventana emergente para registrar o editar un préstamo con validaciones de stock.
+Ventana emergente para registrar o editar un préstamo con botones fijos inferiores y centrado automático.
 """
 
 from datetime import datetime
 import customtkinter as ctk
 from ui.theme import Theme
+from ui.utils import centrar_ventana
 from database.connection import get_connection, get_db_cursor
 from services.stock_service import StockService
 
@@ -17,7 +18,10 @@ class ModalLoan(ctk.CTkToplevel):
         self.prestamo_id = prestamo_id
 
         self.title("Editar Préstamo" if prestamo_id else "Nuevo Préstamo")
-        self.geometry("520x650")
+        
+        # Dimensiones cómodas con centrado automático en pantalla
+        centrar_ventana(self, ancho=540, alto=680)
+        
         self.resizable(False, False)
         self.configure(fg_color=Theme.BG_DARK)
 
@@ -26,7 +30,7 @@ class ModalLoan(ctk.CTkToplevel):
         self.grab_set()
 
         self._cargar_datos_catalogos()
-        self._construir_formulario()
+        self._construir_ui()
 
         if self.prestamo_id:
             self._cargar_datos_existentes()
@@ -45,77 +49,112 @@ class ModalLoan(ctk.CTkToplevel):
         self.lista_recursos = cur.fetchall()
         conn.close()
 
-    def _construir_formulario(self):
-        # Título
+    def _construir_ui(self):
+        # 1. Título Superior
         lbl_titulo = ctk.CTkLabel(
             self,
-            text="Detalle del Préstamo",
+            text="Editar Préstamo" if self.prestamo_id else "Registrar Nuevo Préstamo",
             font=("Segoe UI", 16, "bold"),
             text_color=Theme.ACCENT_YELLOW
         )
-        lbl_titulo.pack(pady=(15, 10))
+        lbl_titulo.pack(side="top", pady=(15, 10))
 
-        form_frame = ctk.CTkFrame(self, fg_color="transparent")
-        form_frame.pack(fill="both", expand=True, padx=25)
+        # 2. Contenedor Inferior Fijo (Botones y Errores)
+        footer_frame = ctk.CTkFrame(self, fg_color="transparent")
+        footer_frame.pack(side="bottom", fill="x", padx=25, pady=(0, 20))
 
-        # 1. Funcionario y Curso
+        # Mensaje de error / validación
+        self.lbl_error = ctk.CTkLabel(
+            footer_frame, text="", 
+            font=("Segoe UI", 11), 
+            text_color=Theme.COLOR_DANGER,
+            wraplength=480
+        )
+        self.lbl_error.pack(fill="x", pady=(0, 8))
+
+        # Botones de Acción
+        btns_frame = ctk.CTkFrame(footer_frame, fg_color="transparent")
+        btns_frame.pack(fill="x")
+
+        btn_cancel = ctk.CTkButton(
+            btns_frame, text="Cancelar", height=38,
+            fg_color=Theme.BG_CARD, hover_color=Theme.BORDER_COLOR,
+            text_color=Theme.TEXT_MAIN,
+            command=self.destroy
+        )
+        btn_cancel.pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+        btn_guardar = ctk.CTkButton(
+            btns_frame, text="Guardar Préstamo", height=38,
+            fg_color=Theme.ACCENT_YELLOW, hover_color=Theme.ACCENT_YELLOW_HOVER,
+            text_color="#1E1E24", font=("Segoe UI", 12, "bold"),
+            command=self._guardar
+        )
+        btn_guardar.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
+        # 3. Formulario Central (Scrollable para no desbordar)
+        form_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        form_frame.pack(side="top", fill="both", expand=True, padx=25, pady=(0, 10))
+
+        # Funcionario y Curso
         ctk.CTkLabel(form_frame, text="Funcionario / Solicitante:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
         nombres_func = [f["nombre"] for f in self.lista_funcionarios]
-        self.combo_funcionario = ctk.CTkComboBox(form_frame, values=nombres_func, height=32, dropdown_fg_color=Theme.BG_CARD)
-        self.combo_funcionario.pack(fill="x", pady=(2, 8))
+        self.combo_funcionario = ctk.CTkComboBox(form_frame, values=nombres_func, height=34, dropdown_fg_color=Theme.BG_CARD)
+        self.combo_funcionario.pack(fill="x", pady=(2, 10))
 
         ctk.CTkLabel(form_frame, text="Curso o Destino:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
         nombres_curso = [c["nombre"] for c in self.lista_cursos]
-        self.combo_curso = ctk.CTkComboBox(form_frame, values=nombres_curso, height=32, dropdown_fg_color=Theme.BG_CARD)
-        self.combo_curso.pack(fill="x", pady=(2, 8))
+        self.combo_curso = ctk.CTkComboBox(form_frame, values=nombres_curso, height=34, dropdown_fg_color=Theme.BG_CARD)
+        self.combo_curso.pack(fill="x", pady=(2, 10))
 
-        # 2. Fecha y Rango Horario
+        # Fecha y Rango Horario
         row_tiempo = ctk.CTkFrame(form_frame, fg_color="transparent")
-        row_tiempo.pack(fill="x", pady=(2, 8))
+        row_tiempo.pack(fill="x", pady=(2, 10))
 
         # Fecha
         col_fecha = ctk.CTkFrame(row_tiempo, fg_color="transparent")
-        col_fecha.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        col_fecha.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ctk.CTkLabel(col_fecha, text="Fecha (YYYY-MM-DD):", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
-        self.entry_fecha = ctk.CTkEntry(col_fecha, height=32)
+        self.entry_fecha = ctk.CTkEntry(col_fecha, height=34)
         self.entry_fecha.insert(0, datetime.now().strftime("%Y-%m-%d"))
         self.entry_fecha.pack(fill="x")
 
         # Hora inicio
         col_inicio = ctk.CTkFrame(row_tiempo, fg_color="transparent")
-        col_inicio.pack(side="left", fill="x", expand=True, padx=5)
+        col_inicio.pack(side="left", fill="x", expand=True, padx=4)
         ctk.CTkLabel(col_inicio, text="Hora Inicio:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
-        self.entry_hora_ini = ctk.CTkEntry(col_inicio, height=32)
+        self.entry_hora_ini = ctk.CTkEntry(col_inicio, height=34)
         self.entry_hora_ini.insert(0, datetime.now().strftime("%H:%M"))
         self.entry_hora_ini.pack(fill="x")
 
         # Hora fin
         col_fin = ctk.CTkFrame(row_tiempo, fg_color="transparent")
-        col_fin.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        col_fin.pack(side="left", fill="x", expand=True, padx=(4, 0))
         ctk.CTkLabel(col_fin, text="Hora Fin:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
-        self.entry_hora_fin = ctk.CTkEntry(col_fin, height=32)
+        self.entry_hora_fin = ctk.CTkEntry(col_fin, height=34)
         self.entry_hora_fin.insert(0, "13:10")
         self.entry_hora_fin.pack(fill="x")
 
-        # 3. Recursos Solicitados (Checkboxes / Inputs de cantidad)
+        # Recursos Solicitados
         ctk.CTkLabel(form_frame, text="Recursos a Solicitar:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w", pady=(5, 2))
         
-        self.scroll_recursos = ctk.CTkScrollableFrame(form_frame, height=140, fg_color=Theme.BG_CARD)
-        self.scroll_recursos.pack(fill="x", pady=(0, 8))
+        self.box_recursos = ctk.CTkFrame(form_frame, fg_color=Theme.BG_CARD, corner_radius=6)
+        self.box_recursos.pack(fill="x", pady=(0, 10))
 
         self.recurso_inputs = {}
         for r in self.lista_recursos:
-            item_row = ctk.CTkFrame(self.scroll_recursos, fg_color="transparent")
-            item_row.pack(fill="x", pady=2)
+            item_row = ctk.CTkFrame(self.box_recursos, fg_color="transparent")
+            item_row.pack(fill="x", padx=10, pady=4)
 
             var_check = ctk.BooleanVar(value=False)
             chk = ctk.CTkCheckBox(item_row, text=r["nombre"], variable=var_check, font=("Segoe UI", 12))
             chk.pack(side="left", padx=5)
 
-            # Input de cantidad (por defecto 1 o editable para lotes)
-            entry_cant = ctk.CTkEntry(item_row, width=60, height=26)
+            entry_cant = ctk.CTkEntry(item_row, width=65, height=28)
             entry_cant.insert(0, "1")
             entry_cant.pack(side="right", padx=5)
+
+            ctk.CTkLabel(item_row, text="Cant:", font=("Segoe UI", 11), text_color=Theme.TEXT_MUTED).pack(side="right", padx=(0, 4))
 
             self.recurso_inputs[r["id"]] = {
                 "check_var": var_check,
@@ -124,31 +163,10 @@ class ModalLoan(ctk.CTkToplevel):
                 "nombre": r["nombre"]
             }
 
-        # 4. Observaciones
+        # Observaciones
         ctk.CTkLabel(form_frame, text="Observaciones / Motivo:", font=("Segoe UI", 11, "bold"), text_color=Theme.TEXT_MUTED).pack(anchor="w")
-        self.entry_obs = ctk.CTkEntry(form_frame, height=32, placeholder_text="Ej: Toma de pruebas, reforzamiento...")
+        self.entry_obs = ctk.CTkEntry(form_frame, height=34, placeholder_text="Ej: Toma de pruebas, reforzamiento...")
         self.entry_obs.pack(fill="x", pady=(2, 10))
-
-        # Mensaje de error/alerta
-        self.lbl_error = ctk.CTkLabel(form_frame, text="", text_color=Theme.COLOR_DANGER, font=("Segoe UI", 11))
-        self.lbl_error.pack(fill="x", pady=(0, 5))
-
-        # Botones de Acción
-        btn_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-        btn_frame.pack(fill="x", pady=(5, 10))
-
-        btn_cancel = ctk.CTkButton(
-            btn_frame, text="Cancelar", fg_color=Theme.BG_CARD,
-            hover_color=Theme.BORDER_COLOR, command=self.destroy
-        )
-        btn_cancel.pack(side="left", fill="x", expand=True, padx=(0, 5))
-
-        btn_guardar = ctk.CTkButton(
-            btn_frame, text="Guardar Préstamo", fg_color=Theme.ACCENT_YELLOW,
-            hover_color=Theme.ACCENT_YELLOW_HOVER, text_color="#1E1E24",
-            command=self._guardar
-        )
-        btn_guardar.pack(side="left", fill="x", expand=True, padx=(5, 0))
 
     def _cargar_datos_existentes(self):
         conn = get_connection()
@@ -176,7 +194,6 @@ class ModalLoan(ctk.CTkToplevel):
                 self.entry_obs.delete(0, "end")
                 self.entry_obs.insert(0, p["observaciones"])
 
-            # Cargar ítems solicitados
             cur.execute("SELECT recurso_id, cantidad FROM prestamo_detalles WHERE prestamo_id = ?;", (self.prestamo_id,))
             detalles = cur.fetchall()
             for d in detalles:
@@ -195,7 +212,6 @@ class ModalLoan(ctk.CTkToplevel):
         h_fin = self.entry_hora_fin.get().strip()
         obs = self.entry_obs.get().strip()
 
-        # Identificar IDs
         func_id = next((f["id"] for f in self.lista_funcionarios if f["nombre"] == func_nombre), None)
         curso_id = next((c["id"] for c in self.lista_cursos if c["nombre"] == curso_nombre), None)
 
@@ -203,7 +219,6 @@ class ModalLoan(ctk.CTkToplevel):
             self.lbl_error.configure(text="Seleccione un funcionario válido.")
             return
 
-        # Recoger ítems seleccionados
         items = []
         for rec_id, data in self.recurso_inputs.items():
             if data["check_var"].get():
@@ -221,13 +236,10 @@ class ModalLoan(ctk.CTkToplevel):
             self.lbl_error.configure(text="Debe seleccionar al menos un recurso o la Sala.")
             return
 
-        # Operación en base de datos
         try:
             if not self.prestamo_id:
-                # Creación nueva
                 exito, mensaje = StockService.crear_prestamo(fecha, h_ini, h_fin, func_id, curso_id, obs, items)
             else:
-                # Edición de préstamo existente
                 exito, mensaje = self._actualizar_prestamo(func_id, curso_id, fecha, h_ini, h_fin, obs, items)
 
             if not exito:
@@ -239,11 +251,9 @@ class ModalLoan(ctk.CTkToplevel):
             self.lbl_error.configure(text=f"Error inesperado: {str(e)}")
 
     def _actualizar_prestamo(self, func_id, curso_id, fecha, h_ini, h_fin, obs, items):
-        """Actualiza el préstamo y sus detalles verificando solapamientos."""
         if h_fin <= h_ini:
             return False, "La hora de término debe ser posterior a la de inicio."
 
-        # Validar disponibilidad excluyendo este préstamo
         for item in items:
             rec_id = item["recurso_id"]
             cant_pedida = item["cantidad"]

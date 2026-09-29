@@ -20,7 +20,7 @@ class LoansView(ctk.CTkFrame):
         self._construir_tabla_contenedor()
 
         # Paginador inferior
-        self.paginator = Paginator(self, on_page_change_callback=self.cargar_prestamos, items_per_page=8)
+        self.paginator = Paginator(self, on_page_change_callback=self.cargar_prestamos, items_per_page=20)
         self.paginator.pack(side="bottom", fill="x", pady=10)
 
         self.cargar_prestamos(1)
