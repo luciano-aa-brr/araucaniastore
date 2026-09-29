@@ -8,6 +8,7 @@ from ui.theme import Theme
 from ui.components.status_bar import StatusBar
 from ui.views.loans_view import LoansView
 from ui.views.inventory_view import InventoryView
+from ui.views.history_view import HistoryView
 
 class AraucaniaApp(ctk.CTk):
     def __init__(self):
@@ -129,6 +130,9 @@ class AraucaniaApp(ctk.CTk):
             self.current_view.pack(fill="both", expand=True)
         elif view_name == "inventario":
             self.current_view = InventoryView(self.main_content, on_stock_changed_callback=self.status_bar.refresh_status)
+            self.current_view.pack(fill="both", expand=True)
+        elif view_name == "historial":
+            self.current_view = HistoryView(self.main_content)
             self.current_view.pack(fill="both", expand=True)
         else:
             # Vista provisional para Historial (Hito 6)
