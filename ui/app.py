@@ -6,6 +6,7 @@ Ventana principal de AraucaníaStock
 import customtkinter as ctk
 from ui.theme import Theme
 from ui.components.status_bar import StatusBar
+from ui.views.loans_view import LoansView
 
 class AraucaniaApp(ctk.CTk):
     def __init__(self):
@@ -51,6 +52,8 @@ class AraucaniaApp(ctk.CTk):
         self.lbl_subtitle.pack(pady=(0, 25), padx=10)
 
         # Botones de navegación
+        self.nav_buttons = {}
+
         self.btn_nav_prestamos = ctk.CTkButton(
             self.sidebar,
             text="📋 Préstamos Activos",
@@ -62,6 +65,7 @@ class AraucaniaApp(ctk.CTk):
             command=lambda: self.switch_view("prestamos")
         )
         self.btn_nav_prestamos.pack(fill="x", padx=12, pady=5)
+        self.nav_buttons["prestamos"] = self.btn_nav_prestamos
 
         self.btn_nav_inventario = ctk.CTkButton(
             self.sidebar,
@@ -74,6 +78,7 @@ class AraucaniaApp(ctk.CTk):
             command=lambda: self.switch_view("inventario")
         )
         self.btn_nav_inventario.pack(fill="x", padx=12, pady=5)
+        self.nav_buttons["inventario"] = self.btn_nav_inventario
 
         self.btn_nav_historial = ctk.CTkButton(
             self.sidebar,
@@ -86,6 +91,7 @@ class AraucaniaApp(ctk.CTk):
             command=lambda: self.switch_view("historial")
         )
         self.btn_nav_historial.pack(fill="x", padx=12, pady=5)
+        self.nav_buttons["historial"] = self.btn_nav_historial
 
         # Pie de Sidebar (Crédito KoaLink)
         self.frame_side_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -104,14 +110,28 @@ class AraucaniaApp(ctk.CTk):
         self.main_content = ctk.CTkFrame(self, fg_color=Theme.BG_DARK, corner_radius=0)
         self.main_content.grid(row=1, column=1, sticky="nsew", padx=15, pady=15)
 
-        # Placeholder temporal
-        self.lbl_placeholder = ctk.CTkLabel(
-            self.main_content,
-            text="Panel de Préstamos Activos\n(En construcción para el siguiente paso)",
-            font=("Segoe UI", 16),
-            text_color=Theme.TEXT_MUTED
-        )
-        self.lbl_placeholder.pack(expand=True)
+        # Montar vista inicial (Préstamos Activos)
+        self.current_view = LoansView(self.main_content, on_data_changed_callback=self.status_bar.refresh_status)
+        self.current_view.pack(fill="both", expand=True)
 
     def switch_view(self, view_name: str):
-        print(f"Cambiando a la vista: {view_name}")
+        """Maneja el cambio visual de vistas y actualiza los botones del sidebar."""
+        for name, btn in self.nav_buttons.items():
+            btn.configure(fg_color=Theme.BG_CARD if name == view_name else "transparent")
+
+        # Destruir vista anterior
+        if hasattr(self, "current_view") and self.current_view:
+            self.current_view.destroy()
+
+        if view_name == "prestamos":
+            self.current_view = LoansView(self.main_content, on_data_changed_callback=self.status_bar.refresh_status)
+            self.current_view.pack(fill="both", expand=True)
+        else:
+            # Vista provisional para las opciones aún en desarrollo
+            self.current_view = ctk.CTkLabel(
+                self.main_content,
+                text=f"Vista '{view_name.capitalize()}' en construcción para el siguiente paso.",
+                font=("Segoe UI", 15),
+                text_color=Theme.TEXT_MUTED
+            )
+            self.current_view.pack(expand=True)
